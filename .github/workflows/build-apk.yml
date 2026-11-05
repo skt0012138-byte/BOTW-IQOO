@@ -26,13 +26,23 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # =========手动安装Android cmdline-tools，避开setup-android的bug=========
+      - name: Manually install Android cmdline-tools
+        run: |
+          export ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools latest
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
 
       - name: Cache Android SDK & NDK
         uses: actions/cache@v4
         with:
-          path: ~/.android
+          path: ${{ env.ANDROID_HOME }}
           key: ${{ runner.os }}-android-sdk-36-ndk30-cmake3304
 
       - name: Cache Gradle
