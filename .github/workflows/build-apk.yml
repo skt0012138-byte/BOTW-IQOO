@@ -26,11 +26,13 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # =========手动安装Android cmdline-tools，避开setup-android的bug=========
       - name: Manually install Android cmdline-tools
         run: |
           export ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk
+          # 重点：删除冲突的 ANDROID_SDK_ROOT 环境变量
+          unset ANDROID_SDK_ROOT
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           mkdir -p $ANDROID_HOME/cmdline-tools
           cd $ANDROID_HOME/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
