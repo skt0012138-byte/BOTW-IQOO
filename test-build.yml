@@ -20,6 +20,12 @@ jobs:
           unzip -q BOTW-IQOO-Dual.zip -d source
           echo "SRC=$GITHUB_WORKSPACE/source/BOTWRecompAndroid-main" >> $GITHUB_ENV
 
+      # ✅关键步骤：自动替换源码build.gradle硬编码ndkVersion
+      - name: Patch build.gradle ndkVersion
+        run: |
+          cd $SRC/android/botwrecompandroid/app
+          sed -i 's/ndkVersion.*"30.0.16248370"/ndkVersion "25.2.9519653"/g' build.gradle
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -81,7 +87,7 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon assembleRelease --info
         working-directory: source/BOTWRecompAndroid-main/android/botwrecompandroid
 
       - name: Upload APK
