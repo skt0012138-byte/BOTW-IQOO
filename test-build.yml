@@ -1,0 +1,93 @@
+name: Build BOTW IQOO APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract source
+        run: |
+          unzip -q BOTW-IQOO-Dual.zip -d source
+          echo "SRC=$GITHUB_WORKSPACE/source/BOTWRecompAndroid-main" >> $GITHUB_ENV
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Manually install Android cmdline-tools
+        run: |
+          export ANDROID_HOME=$GITHUB_WORKSPACE/android-sdk
+          unset ANDROID_SDK_ROOT
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools latest
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Cache Android SDK & NDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: ${{ runner.os }}-android-sdk-34-ndk25-cmake3221
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('source/BOTWRecompAndroid-main/android/botwrecompandroid/**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Accept SDK Licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install dependencies
+        run: |
+          sdkmanager --install \
+            'platforms;android-34' \
+            'build-tools;34.0.0' \
+            'ndk;25.2.9519653' \
+            'cmake;3.22.1' \
+            'platform-tools'
+
+      - name: Get libadrenotools
+        run: |
+          git clone --depth 1 \
+            https://github.com/bylaws/libadrenotools \
+            "$SRC/third_party/libadrenotools"
+
+      - name: Build native dependencies
+        run: bash android/deps/build_deps.sh
+        working-directory: source/BOTWRecompAndroid-main
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+        working-directory: source/BOTWRecompAndroid-main/android/botwrecompandroid
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOTW-IQOO-APK
+          path: source/BOTWRecompAndroid-main/android/botwrecompandroid/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
