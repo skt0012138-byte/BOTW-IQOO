@@ -1,0 +1,63 @@
+name: Build BOTW IQOO APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract source
+        run: |
+          unzip -q BOTW-IQOO-Dual.zip -d source
+          echo "SRC=$GITHUB_WORKSPACE/source/BOTWRecompAndroid-main" >> $GITHUB_ENV
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: |
+          sdkmanager --install \
+            'platforms;android-36' \
+            'build-tools;36.0.0' \
+            'ndk;30.0.16248370' \
+            'cmake;3.30.4' \
+            'platform-tools'
+
+      - name: Get libadrenotools
+        run: |
+          git clone --depth 1 \
+            https://github.com/bylaws/libadrenotools \
+            "$SRC/third_party/libadrenotools"
+
+      - name: Build native dependencies
+        run: bash android/deps/build_deps.sh
+        working-directory: source/BOTWRecompAndroid-main
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+        working-directory: source/BOTWRecompAndroid-main/android/botwrecompandroid
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOTW-IQOO-APK
+          path: source/BOTWRecompAndroid-main/android/botwrecompandroid/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
